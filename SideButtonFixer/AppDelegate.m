@@ -81,6 +81,7 @@ typedef NS_ENUM(NSInteger, MenuMode) {
 
 typedef NS_ENUM(NSInteger, MenuItem) {
     MenuItemEnabled = 0,
+    MenuItemToggleForCurrentApp,
     MenuItemEnabledSeparator,
     MenuItemTriggerOnMouseDown,
     MenuItemSwapButtons,
@@ -138,7 +139,8 @@ typedef NS_ENUM(NSInteger, MenuItem) {
                                                               @"SBFWasEnabled": @YES,
                                                               @"SBFMouseDown": @YES,
                                                               @"SBFDonated": @NO,
-                                                              @"SBFSwapButtons": @NO
+                                                              @"SBFSwapButtons": @NO,
+                                                              @"SBFIgnoredApplications": @[]
                                                               }];
     
     // setup globals
@@ -170,9 +172,7 @@ typedef NS_ENUM(NSInteger, MenuItem) {
     
     // set up ignored applications list
     {
-        ignoredApplications = [NSMutableArray arrayWithObjects:
-                               @"com.aspyr.borderlands2.steam",
-                               nil];
+        ignoredApplications = [[[NSUserDefaults standardUserDefaults] arrayForKey:@"SBFIgnoredApplications"] mutableCopy];
     }
 
     // create menu
@@ -185,6 +185,10 @@ typedef NS_ENUM(NSInteger, MenuItem) {
         NSMenuItem* enabledItem = [[NSMenuItem alloc] initWithTitle:@"Enabled" action:@selector(enabledToggle:) keyEquivalent:@"e"];
         [menu addItem:enabledItem];
         assert(menu.itemArray.count - 1 == MenuItemEnabled);
+        
+        NSMenuItem* toggleCurrentAppItem = [[NSMenuItem alloc] initWithTitle:@"Toggle For Current Application" action:@selector(currentAppToggle:) keyEquivalent:@"t"];
+        [menu addItem:toggleCurrentAppItem];
+        assert(menu.itemArray.count - 1 == MenuItemToggleForCurrentApp);
         
         [menu addItem:[NSMenuItem separatorItem]];
         assert(menu.itemArray.count - 1 == MenuItemEnabledSeparator);
@@ -366,6 +370,28 @@ typedef NS_ENUM(NSInteger, MenuItem) {
 
 -(void) enabledToggle:(id)sender {
     [self startTap:self.tap == NULL];
+    [self refreshSettings];
+}
+
+-(void) currentAppToggle:(id)sender {
+    NSWorkspace *currentWs = [NSWorkspace sharedWorkspace];
+    NSRunningApplication *openedApp = currentWs.frontmostApplication;
+
+    if (openedApp == nil || openedApp.bundleIdentifier == nil) {
+        NSLog(@"unable to get openedApp.");
+        return;
+    }
+    
+   NSString *identifier = [[NSString alloc]initWithString:openedApp.bundleIdentifier];
+    
+    if ([ignoredApplications indexOfObject:identifier] == NSNotFound) {
+        [ignoredApplications addObject:identifier];
+    } else {
+        [ignoredApplications removeObject:identifier];
+    }
+    
+    [[NSUserDefaults standardUserDefaults] setObject:ignoredApplications forKey:@"SBFIgnoredApplications"];
+    
     [self refreshSettings];
 }
 
